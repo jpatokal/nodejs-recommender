@@ -29,41 +29,43 @@ async function main(
   async function getZonesWithVMs() {
      const Compute = require('@google-cloud/compute');
      const compute = new Compute();
-     
-     const zones = new Set();
-     compute.getVMs().then((vms) => {
-      vms[0].forEach((instance) => {
-        zones.add
-        console.log(instance.zone.id);
-      });
-     });
-     return zones;
+     return await compute.getVMs().then((vms) => {
+      const zoneSet = new Set();
+      for(const vm of vms[0]) {
+        zoneSet.add(vm.zone.id);
+      }
+      return Array.from(zoneSet);
+    });
   }
 
-  async function listRecommendations() {
+  async function listRecommendations(zones) {
     const {RecommenderClient} = require('@google-cloud/recommender');
     const recommender = new RecommenderClient();
+    const recommendations = new Array();
 
     // parent = 'projects/my-project'; // Project to fetch recommendations for.
     // recommenderId = 'google.compute.instance.MachineTypeRecommender';
 
-    const [recommendations] = await recommender.listRecommendations({
-      parent: recommender.recommenderPath(project, 'asia-east1-a', recommenderId),
-    });
-    console.info(`Recommendations from ${recommenderId}:`);
-    for (const recommendation of recommendations) {
-      for (const operationGroup of recommendation.content.operationGroups) {
-        for (const operation of operationGroup.operations) {
-          if(operation.action == "replace") {
-            console.info(`Change instance ${operation.resource} to ${operation.value.stringValue}`);
+    for(const zone of zones) {
+      const [zoneRecs] = await recommender.listRecommendations({
+        parent: recommender.recommenderPath(project, zone, recommenderId),
+      });
+      console.info(`Recommendations from ${recommenderId} in zone ${zone}:`);
+      for (const recommendation of recommendations) {
+        for (const operationGroup of recommendation.content.operationGroups) {
+          for (const operation of operationGroup.operations) {
+            if(operation.action == "replace") {
+              console.info(`Change instance ${operation.resource} to ${operation.value.stringValue}`);
+            }
           }
         }
       }
+      recommendations.push(...zoneRecs);
     }
     return recommendations;
   }
   const zones = await getZonesWithVMs();
-  //  const recommendations = await listRecommendations();
+  const recommendations = await listRecommendations(zones);
   // [END recommender_quickstart]
   return recommendations;
 }
