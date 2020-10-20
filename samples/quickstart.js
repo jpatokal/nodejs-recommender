@@ -21,10 +21,25 @@
  * @param {string} recommenderName
  */
 async function main(
-  project = 'my-project',
+  project = 'jani-gce-test',
   recommenderId = 'google.compute.instance.MachineTypeRecommender'
 ) {
   // [START recommender_quickstart]
+
+  async function getZonesWithVMs() {
+     const Compute = require('@google-cloud/compute');
+     const compute = new Compute();
+     
+     const zones = new Set();
+     compute.getVMs().then((vms) => {
+      vms[0].forEach((instance) => {
+        zones.add
+        console.log(instance.zone.id);
+      });
+     });
+     return zones;
+  }
+
   async function listRecommendations() {
     const {RecommenderClient} = require('@google-cloud/recommender');
     const recommender = new RecommenderClient();
@@ -33,15 +48,22 @@ async function main(
     // recommenderId = 'google.compute.instance.MachineTypeRecommender';
 
     const [recommendations] = await recommender.listRecommendations({
-      parent: recommender.recommenderPath(project, 'global', recommenderId),
+      parent: recommender.recommenderPath(project, 'asia-east1-a', recommenderId),
     });
-    console.info(`recommendations for ${recommenderId}:`);
+    console.info(`Recommendations from ${recommenderId}:`);
     for (const recommendation of recommendations) {
-      console.info(recommendation);
+      for (const operationGroup of recommendation.content.operationGroups) {
+        for (const operation of operationGroup.operations) {
+          if(operation.action == "replace") {
+            console.info(`Change instance ${operation.resource} to ${operation.value.stringValue}`);
+          }
+        }
+      }
     }
     return recommendations;
   }
-  const recommendations = await listRecommendations();
+  const zones = await getZonesWithVMs();
+  //  const recommendations = await listRecommendations();
   // [END recommender_quickstart]
   return recommendations;
 }
